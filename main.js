@@ -157,6 +157,7 @@ const processMediumDate = async () => {
     const arr = []
     for (const { year, months } of mediumDate) {
         for (const { month } of months) {
+            // 若已经遍历完成直接跳过
             if (!complete[year]?.[month]) {
                 if (count < 5) {
                     arr.push(getArtListfetch(year, month))
@@ -172,6 +173,7 @@ const processMediumDate = async () => {
 
 
     await Promise.all(arr);
+
     if (hasMore || showReturn) {
         hasMore = false
         showReturn = false
@@ -182,27 +184,26 @@ const processMediumDate = async () => {
         const top10 = getTop10()
 
 
-        for (const item of top10.slice(9)) {
+        for (const item of top10) {
             const postId = item.split(':')[0]
-
+            // 获取文章详情
             const res = await getArtDetail(postId)
 
-            // 翻译
+            // 翻译文章
             try {
                 const html = await processArticle(res)
                 await htmlToPdf(html, path.join(__dirname, `/pdf/${item.replace(':', '-')}.pdf`))
 
             } catch (error) {
                 console.error('Error:', error.message);
-
             }
-
         }
 
-
-        console.log(34444)
+        return true
         // compressPdfDirectory(path.join(__dirname, '/pdf'), path.join(__dirname, '/zip'))
     }
 };
 
-processMediumDate()
+module.exports = processMediumDate
+
+// processMediumDate()

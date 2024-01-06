@@ -20,12 +20,12 @@ function compressPdfDirectory(directoryPath, zipFilePath) {
     // 遍历目录下所有的 PDF 文件，并添加到 ZIP 中
     const pdfFiles = fs.readdirSync(directoryPath).filter(file => file.endsWith('.pdf'));
 
-    console.log(pdfFiles)
+    // console.log(pdfFiles)
 
     pdfFiles.forEach(pdfFile => {
         const filePath = `${directoryPath}/${pdfFile}`;
 
-        console.log(filePath)
+        // console.log(filePath)
         archive.append(fs.createReadStream(filePath), { name: pdfFile });
     });
 
@@ -37,4 +37,4 @@ module.exports = compressPdfDirectory
 // const directoryPath = '/path/to/pdf/directory';
 // const zipFilePath = '/path/to/output/zip/file.zip';
 
-compressPdfDirectory('./pdf', './zip');
+// compressPdfDirectory('./pdf', './zip');

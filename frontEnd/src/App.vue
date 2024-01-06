@@ -1,5 +1,6 @@
 <script setup>
 import { onMounted, ref } from 'vue';
+import { ElLoading } from 'element-plus'
 
 let canvas
 let ctx
@@ -11,9 +12,10 @@ var columns
 var drops = [];
 
 
-const  download = async () => {
+const download = async () => {
   try {
-    const response = await fetch('http://localhost:3000/download-zip');
+
+    const response = await fetch('/download-zip');
 
     if (!response.ok) {
       throw new Error(`HTTP error! Status: ${response.status}`);
@@ -56,9 +58,27 @@ onMounted(() => {
 
 
 const show = ref(false)
-const start = () => {
+const canDown = ref(false)
+const start = async () => {
   show.value = true
   setInterval(draw, 33);
+
+  const loadingInstance = ElLoading.service({ fullscreen: true })
+  try {
+    const response = await fetch('/start');
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! Status: ${response.status}`);
+    }
+
+    await response.json()
+    canDown.value = true
+
+  } catch (error) {
+    console.error('Error:', error.message);
+  } finally {
+    loadingInstance.close()
+  }
 }
 
 
@@ -92,8 +112,13 @@ function draw() {
 
     <el-button style="margin-top: 12px;" :disabled="show" @click="start">Create pdf files</el-button>
 
-    <el-button style="margin-top: 12px;" @click="download">download</el-button>
+    <el-button style="margin-top: 12px;" :disabled="!canDown" @click="download">download</el-button>
   </div>
 </template>
 
-<style scoped></style>
+<style>
+
+.el-loading-mask {
+  background-color: transparent;
+}
+</style>

@@ -7,13 +7,18 @@ const path = require('path');
 const archiver = require('archiver');
 const port = 3000; // 可以使用任意未被占用的端口
 
+const processMediumDate = require('./main')
+// 指定静态资源目录
+app.use(express.static(path.join(__dirname, 'dist')));
+
 // 定义一个简单的路由
 app.get('/', (req, res) => {
-  res.send('Hello, Express!');
+  res.sendFile(path.join(__dirname, './dist/index.html'));
 });
 
-app.get('/start', (req, res) => {
-  res.send('Hello, Express!');
+app.get('/start', async (req, res) => {
+  await processMediumDate()
+  res.send({ code: '00' })
 });
 
 
