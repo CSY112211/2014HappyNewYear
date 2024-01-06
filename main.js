@@ -68,6 +68,10 @@ async function fetchData(year, month, sortOrder, next = "") {
 
 function getComplete() {
     const content = fs.readFileSync('./complete.json', 'utf-8');
+    if(content.length === 0) {
+       return {}
+       
+    }
     return JSON.parse(content);
 }
 
@@ -96,7 +100,7 @@ async function getArtListfetch(year, month, next1 = '', next2 = '') {
             obj[year] = new Set(obj[year])
             // 遍历完成,生成json
             const setJsonString = JSON.stringify(Array.from(obj[year]));
-            const directoryPath = path.join(__dirname, `${datas}/${year}/${month}`)
+            const directoryPath = path.join(__dirname, `/datas/${year}/${month}`)
             // 存储到本地文件
             if (!fs.existsSync(directoryPath)) {
                 fs.mkdirSync(directoryPath, { recursive: true });
@@ -174,7 +178,7 @@ const processMediumDate = async () => {
     if (hasMore || showReturn) {
         hasMore = false
         showReturn = false
-        await sleep(10000)
+        await sleep(5000)
         await processMediumDate()
     } else {
         // 获取top10
