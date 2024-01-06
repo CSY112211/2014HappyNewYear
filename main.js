@@ -165,12 +165,9 @@ const processMediumDate = async () => {
                 } else {
                     hasMore = true
                 }
-                // await getArtListfetch(year, month);
-                // arr.push(getArtListfetch(year, month))
             }
         }
     }
-
 
     await Promise.all(arr);
 
