@@ -18,7 +18,7 @@
 
 1.抓取Medium 当前tag下年月选项保存于date.json中
 
-2.遍历所有年月获取文章id与点赞量
+2.遍历所有年月获取文章id与点赞量，**测试抓取时请清空`complete.js`文件**
 
 ```javascript
 const mediumDate = require('./date.json')
