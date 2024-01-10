@@ -99,13 +99,35 @@ function createHtml(paragraphs, translations) {
 async function processArticle(article) {
     const paragraphs = article;
     const translations = [];
+    const maxCharacters = 5000
+    let currentText = '';
 
     for (const paragraph of paragraphs) {
-        const translation = await translateText(paragraph.text, 'en', 'zh', '20211210001024228', 'YcaO3KvFA6CZqGiFp30E');
-        translations.push(translation);
+        // 如果加上当前段落的文本不超过最大字符数，则继续拼接
+        if (currentText.length + paragraph.text.length <= maxCharacters) {
+            currentText += paragraph.text + '$$$';  // 可以根据实际需求修改拼接方式
+        } else {
+            // 当超过最大字符数时，调用翻译接口，并将结果添加到 translations 数组中
+            const translation = await translateText(currentText, 'en', 'zh', '20211210001024228', 'YcaO3KvFA6CZqGiFp30E');
+            translations.push(translation);
+
+            // 重置 currentText 为当前段落的文本
+            currentText = paragraph.text + '$$$';
+        }
     }
 
-    const html = createHtml(paragraphs, translations);
+    // 处理最后一部分文本
+    if (currentText.length > 0) {
+        const translation = await translateText(currentText, 'en', 'zh', '20211210001024228', 'YcaO3KvFA6CZqGiFp30E');
+        translations.push(translation);
+    }
+    let arr = []
+    translations.map(item => {
+        arr = arr.concat(item.split('$$$'))
+    })
+
+
+    const html = createHtml(paragraphs, arr);
     return html;
 }
 

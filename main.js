@@ -1,33 +1,31 @@
-const axios = require('axios');
-const sleep = require('sleep-promise');
-const { HttpsProxyAgent } = require('https-proxy-agent');
-const mediumDate = require('./date.json')
-// const complete = require('./complete.json')
+const axios = require('axios')
+const sleep = require('sleep-promise')
+const { HttpsProxyAgent } = require('https-proxy-agent')
 const htmlToPdf = require('./htmlToPDF')
-
-const apiBaseUrl = 'https://medium.com/_/graphql';
-const vpnProxyUrl = 'http://127.0.0.1:7078';
-
 const query = require('./query.json')
+const fs = require('fs')
+const path = require('path')
+// 调用百度api翻译
+const processArticle = require('./translateAndToHtml')
+// 年月日
+const mediumDate = require('./date.json')
+const QueueMange = require('./queue')
 
-// const { getRandomInt } = require('./util')
-const fs = require('fs');
-const path = require('path');
 
-const compressPdfDirectory = require('./pdfToZip')
+const apiBaseUrl = 'https://medium.com/_/graphql'
+const vpnProxyUrl = 'http://127.0.0.1:8118'
 
 const obj = {}
 let showReturn = false
 
 // 创建代理实例
 const vpnProxyAgent = new HttpsProxyAgent(vpnProxyUrl);
-// 翻译
-const processArticle = require('./translateAndToHtml')
 const getTop10 = require('./sort')
 
 
-// 获取list
-async function fetchData(year, month, sortOrder, next = "") {
+// api：获取当前tag下文章
+async function fetchData(year, month, sortOrder, next = "", errList) {
+
     try {
         const response = await axios.post(apiBaseUrl, [
             {
@@ -54,23 +52,24 @@ async function fetchData(year, month, sortOrder, next = "") {
             },
             httpsAgent: vpnProxyAgent,
         });
-
         console.log(year, month, '正常')
         return {
             edges: response.data[0].data.tagFromSlug.sortedFeed.edges,
             pageInfo: response.data[0].data.tagFromSlug.sortedFeed.pageInfo
         };
     } catch (error) {
-        showReturn = true
+        console.log('接口限制捕获成功')
+        errList.push(() => getArtListfetch(year, month, next, errList))
         throw new Error(`Error fetching data: ${year, month, error.message}`);
     }
 }
 
+// 获取翻译进度
 function getComplete() {
     const content = fs.readFileSync('./complete.json', 'utf-8');
-    if(content.length === 0) {
-       return {}
-       
+    if (content.length === 0) {
+        return {}
+
     }
     return JSON.parse(content);
 }
@@ -81,12 +80,9 @@ function getComplete() {
  * @param {number} month 月
  * @param { string } next 下一页信息
  */
-async function getArtListfetch(year, month, next1 = '', next2 = '') {
+async function getArtListfetch(year, month, next = '', errList) {
     try {
-        // await sleep(getRandomInt(100, 300));
-
-        const forwardResponse = await fetchData(year, month, 'OLDEST', next1)
-
+        const forwardResponse = await fetchData(year, month, 'OLDEST', next, errList)
         // 处理获取到的数据
         const forwardData = forwardResponse.edges.map(item => (`${item.node.id}:${item.node.clapCount}`));
 
@@ -95,9 +91,9 @@ async function getArtListfetch(year, month, next1 = '', next2 = '') {
         }
         obj[year] = obj[year].concat(forwardData)
 
-
         if (forwardResponse.pageInfo.hasNextPage === false) {
             obj[year] = new Set(obj[year])
+
             // 遍历完成,生成json
             const setJsonString = JSON.stringify(Array.from(obj[year]));
             const directoryPath = path.join(__dirname, `/datas/${year}/${month}`)
@@ -116,10 +112,12 @@ async function getArtListfetch(year, month, next1 = '', next2 = '') {
 
             // 标记已完成年月
             fs.writeFileSync('complete.json', newcomplete, 'utf-8');
+
+            delete obj[year]
         } else {
             // await sleep(getRandomInt(100, 300));
             // 继续遍历
-            await getArtListfetch(year, month, forwardResponse.pageInfo.endCursor)
+            await getArtListfetch(year, month, forwardResponse.pageInfo.endCursor, errList)
         }
     } catch (error) {
         console.error('Error:', year, month, error.message);
@@ -154,57 +152,33 @@ async function getArtDetail(postId) {
 }
 
 const processMediumDate = async () => {
-    const complete = getComplete();
-    let count = 0
-    let hasMore = false
+    const queue = new QueueMange()
 
-    const arr = []
-    for (const { year, months } of mediumDate) {
-        for (const { month } of months) {
-            // 若已经遍历完成直接跳过
-            if (!complete[year]?.[month]) {
-                if (count < 5) {
-                    arr.push(getArtListfetch(year, month))
-                    count++
-                } else {
-                    hasMore = true
-                }
-            }
+    await queue.start(getArtListfetch)
+
+
+    const top10 = getTop10()
+
+
+    for (const item of top10) {
+        const postId = item.split(':')[0]
+        // 获取文章详情
+        const res = await getArtDetail(postId)
+
+        // 翻译文章
+        try {
+            const html = await processArticle(res)
+            await htmlToPdf(html, path.join(__dirname, `/pdf/${item.replace(':', '-')}.pdf`))
+
+        } catch (error) {
+            console.error('Error:', error.message);
         }
     }
 
-    await Promise.all(arr);
-
-    if (hasMore || showReturn) {
-        hasMore = false
-        showReturn = false
-        await sleep(5000)
-        await processMediumDate()
-    } else {
-        // 获取top10
-        const top10 = getTop10()
-
-
-        for (const item of top10) {
-            const postId = item.split(':')[0]
-            // 获取文章详情
-            const res = await getArtDetail(postId)
-
-            // 翻译文章
-            try {
-                const html = await processArticle(res)
-                await htmlToPdf(html, path.join(__dirname, `/pdf/${item.replace(':', '-')}.pdf`))
-
-            } catch (error) {
-                console.error('Error:', error.message);
-            }
-        }
-
-        return true
-        // compressPdfDirectory(path.join(__dirname, '/pdf'), path.join(__dirname, '/zip'))
-    }
+    return true
 };
 
-module.exports = processMediumDate
 
 // processMediumDate()
+
+module.exports = processMediumDate
