@@ -43,7 +43,7 @@ class QueueMange {
     }
 
     async start(proxy) {
-        const showReturn = false
+        let showReturn = false
         while (this.hasMore()) {
             // await proxy(...this.incomplete.pop())
             if (this.incomplete.length) {
