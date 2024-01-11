@@ -123,7 +123,7 @@ async function getArtListfetch(year, month, next = '', errList, index) {
             return index
         } else {
             // 继续遍历
-            await getArtListfetch(year, month, forwardResponse.pageInfo.endCursor, errList, index)
+            return await getArtListfetch(year, month, forwardResponse.pageInfo.endCursor, errList, index)
         }
     } catch (error) {
         throw new Error(index);

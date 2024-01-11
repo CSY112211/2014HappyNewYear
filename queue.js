@@ -8,7 +8,10 @@ const { getComplete } = require('./util')
 // 抓取数据控制
 class QueueMange {
     constructor() {
-        // 未完成队列
+        this.init()
+    }
+
+    init() {
         this.incomplete = []
         // 错误队列
         this.errList = []
@@ -41,12 +44,12 @@ class QueueMange {
 
 
     async start(proxy) {
-
+        const showReturn = false
         while (this.hasMore()) {
             // await proxy(...this.incomplete.pop())
             if (this.incomplete.length) {
-                const arr = this.incomplete.pop()
-                console.log(arr)
+                const arr = this.incomplete.shift()
+                debugger
                 this.operation.push(proxy(...arr, '', this.errList, this.operation.length))
             } else {
                 console.log('暂无需要抓取的数据')
@@ -63,29 +66,35 @@ class QueueMange {
                 //     const newProxyPromise = this.errList.pop()(completedPromise);
                 //     this.operation.splice(completedPromise, 1, newProxyPromise);
                 // } else {
-                    const newProxyPromise = proxy(...this.incomplete.pop(), '', this.errList, completedPromise);
-                    this.operation.splice(completedPromise, 1, newProxyPromise);
+                const newProxyPromise = proxy(...this.incomplete.shift(), '', this.errList, completedPromise);
+                this.operation.splice(completedPromise, 1, newProxyPromise);
                 // }
                 console.log(`变更后，进行中任务数${this.operation.length},剩余任务数${this.incomplete.length + this.errList.length}`)
 
             } catch (error) {
-                console.log(error.message)
+                showReturn = true
+                // console.log(error.message)
 
-                await sleep(3000)
-                const completedPromise = Number(error.message)
-                if (!Number.isNaN(completedPromise)) {
-                    if (this.errList.length > 0) {
-                        const newProxyPromise = this.errList.pop()(completedPromise);
-                        this.operation.splice(completedPromise, 1, newProxyPromise);
-                    }
-                }
+                // await sleep(3000)
+                // const completedPromise = Number(error.message)
+                // if (!Number.isNaN(completedPromise)) {
+                //     if (this.errList.length > 0) {
+                //         const newProxyPromise = this.errList.pop()(completedPromise);
+                //         this.operation.splice(completedPromise, 1, newProxyPromise);
+                //     }
+                // }
 
             }
         }
 
-        await Promise.all(this.operation);
-        console.log('over')
-        return
+        if (showReturn) {
+            this.init()
+            await this.start(proxy)
+        } else {
+            await Promise.all(this.operation);
+            console.log('over')
+            return
+        }
     }
 }
 
