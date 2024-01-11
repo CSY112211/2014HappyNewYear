@@ -9,6 +9,7 @@ const { getComplete } = require('./util')
 class QueueMange {
     constructor() {
         this.init()
+        this.count = 10
     }
 
     init() {
@@ -18,7 +19,6 @@ class QueueMange {
         // 运行中
         this.operation = []
         // 并行请求数量
-        this.count = 3
 
         this.getIncomplete()
     }
@@ -39,17 +39,26 @@ class QueueMange {
 
     // 判断队列是否撑满
     hasMore() {
-        return (this.incomplete.length > 0 || this.errList.length > 0) && this.operation.length < this.count
+        return this.incomplete.length > 0 && this.operation.length < this.count
     }
 
     async start(proxy) {
-        let showReturn = false
         while (this.hasMore()) {
-            // await proxy(...this.incomplete.pop())
             if (this.incomplete.length) {
                 const arr = this.incomplete.shift()
-                debugger
-                this.operation.push(proxy(...arr, '', this.errList, this.operation.length))
+                try {
+                    this.operation.push(proxy(...arr, '', this.errList, this.operation.length))
+                } catch (error) {
+                    try {
+                        await Promise.allSettled(this.operation);
+
+                        this.init()
+                        console.log('再次查詢1')
+                        return await this.start(proxy)
+                    } catch (err) {
+                        console.log(err)
+                    }
+                }
             } else {
                 console.log('暂无需要抓取的数据')
                 return
@@ -57,43 +66,34 @@ class QueueMange {
         }
         console.log(`进行中任务数${this.operation.length},剩余任务数${this.incomplete.length}`)
 
-        while (this.incomplete.length > 0 || this.errList.length > 0) {
-            if (this.operation.length === 0) return
+        while (this.incomplete.length > 0 || this.operation.length > 0) {
             try {
                 const completedPromise = await Promise.race(this.operation); // 返回完成下标
                 console.log('任务完成，下标为：', completedPromise)
-                // if (this.errList.length > 0) {
-                //     const newProxyPromise = this.errList.pop()(completedPromise);
-                //     this.operation.splice(completedPromise, 1, newProxyPromise);
-                // } else {
-                const newProxyPromise = proxy(...this.incomplete.shift(), '', this.errList, completedPromise);
-                this.operation.splice(completedPromise, 1, newProxyPromise);
-                // }
+                if (this.incomplete.length > 0) {
+                    const newProxyPromise = proxy(...this.incomplete.shift(), '', this.errList, completedPromise);
+                    this.operation.splice(completedPromise, 1, newProxyPromise);
+                } else {
+                    await Promise.allSettled(this.operation);
+                    console.log('over')
+                    return
+                }
                 console.log(`变更后，进行中任务数${this.operation.length},剩余任务数${this.incomplete.length + this.errList.length}`)
 
             } catch (error) {
-                showReturn = true
-                // console.log(error.message)
+                try {
+                    await Promise.allSettled(this.operation);
 
-                // await sleep(3000)
-                // const completedPromise = Number(error.message)
-                // if (!Number.isNaN(completedPromise)) {
-                //     if (this.errList.length > 0) {
-                //         const newProxyPromise = this.errList.pop()(completedPromise);
-                //         this.operation.splice(completedPromise, 1, newProxyPromise);
-                //     }
-                // }
+                    this.init()
+
+                    console.log('再次查詢2')
+                    if (this.count > 4) this.count--
+                    return await this.start(proxy)
+                } catch (err) {
+                    console.log(err)
+                }
 
             }
-        }
-
-        if (showReturn) {
-            this.init()
-            await this.start(proxy)
-        } else {
-            await Promise.all(this.operation);
-            console.log('over')
-            return
         }
     }
 }

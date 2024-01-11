@@ -126,6 +126,7 @@ async function getArtListfetch(year, month, next = '', errList, index) {
         }
     } catch (error) {
         throw new Error(index);
+        //   return index
     }
 }
 
@@ -183,6 +184,6 @@ const processMediumDate = async () => {
     return true
 };
 
-// processMediumDate()
+processMediumDate()
 
 module.exports = processMediumDate
