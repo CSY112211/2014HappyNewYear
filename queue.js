@@ -58,6 +58,7 @@ class QueueMange {
         console.log(`进行中任务数${this.operation.length},剩余任务数${this.incomplete.length}`)
 
         while (this.incomplete.length > 0 || this.errList.length > 0) {
+            if (this.operation.length === 0) return
             try {
                 const completedPromise = await Promise.race(this.operation); // 返回完成下标
                 console.log('任务完成，下标为：', completedPromise)
