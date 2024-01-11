@@ -1,3 +1,4 @@
+const sleep = require('sleep-promise')
 // 年月筛选json
 const mediumDate = require('./date.json')
 // 年月抓取完成情况
@@ -14,7 +15,7 @@ class QueueMange {
         // 运行中
         this.operation = []
         // 并行请求数量
-        this.count = 10
+        this.count = 3
 
         this.getIncomplete()
     }
@@ -44,33 +45,47 @@ class QueueMange {
         while (this.hasMore()) {
             // await proxy(...this.incomplete.pop())
             if (this.incomplete.length) {
-                this.operation.push(proxy(...this.incomplete.pop(), '', this.errList))
+                const arr = this.incomplete.pop()
+                console.log(arr)
+                this.operation.push(proxy(...arr, '', this.errList, this.operation.length))
             } else {
                 console.log('暂无需要抓取的数据')
                 return
             }
         }
+        console.log(`进行中任务数${this.operation.length},剩余任务数${this.incomplete.length}`)
 
-        while (this.incomplete > 0 || this.errList > 0) {
-            const completedPromise = await Promise.race(this.operation);
+        while (this.incomplete.length > 0 || this.errList.length > 0) {
+            try {
+                const completedPromise = await Promise.race(this.operation); // 返回完成下标
+                console.log('任务完成，下标为：', completedPromise)
+                // if (this.errList.length > 0) {
+                //     const newProxyPromise = this.errList.pop()(completedPromise);
+                //     this.operation.splice(completedPromise, 1, newProxyPromise);
+                // } else {
+                    const newProxyPromise = proxy(...this.incomplete.pop(), '', this.errList, completedPromise);
+                    this.operation.splice(completedPromise, 1, newProxyPromise);
+                // }
+                console.log(`变更后，进行中任务数${this.operation.length},剩余任务数${this.incomplete.length + this.errList.length}`)
 
+            } catch (error) {
+                console.log(error.message)
 
-            // 当有请求完成时，移除完成的请求，并添加新的请求到窗口
-            this.operation.splice(promises.indexOf(completedPromise), 1);
-
-            if (this.hasMore) {
-                if (this.errList > 0) {
-                    const newProxyPromise = proxy(...this.errList.pop()());
-                    this.operation.push(newProxyPromise);
-                } else {
-                    const newProxyPromise = proxy(...this.incomplete.pop(), '', this.errList);
-                    this.operation.push(newProxyPromise);
+                await sleep(3000)
+                const completedPromise = Number(error.message)
+                if (!Number.isNaN(completedPromise)) {
+                    if (this.errList.length > 0) {
+                        const newProxyPromise = this.errList.pop()(completedPromise);
+                        this.operation.splice(completedPromise, 1, newProxyPromise);
+                    }
                 }
-            }
 
+            }
         }
+
         await Promise.all(this.operation);
         console.log('over')
+        return
     }
 }
 

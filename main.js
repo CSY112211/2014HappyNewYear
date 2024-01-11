@@ -13,7 +13,7 @@ const QueueMange = require('./queue')
 
 
 const apiBaseUrl = 'https://medium.com/_/graphql'
-const vpnProxyUrl = 'http://127.0.0.1:8118'
+const vpnProxyUrl = 'http://127.0.0.1:7078'
 
 const obj = {}
 let showReturn = false
@@ -24,8 +24,8 @@ const getTop10 = require('./sort')
 
 
 // api：获取当前tag下文章
-async function fetchData(year, month, sortOrder, next = "", errList) {
-
+async function fetchData(year, month, sortOrder, next = "", errList, index) {
+    console.log('fetchData', year, month)
     try {
         const response = await axios.post(apiBaseUrl, [
             {
@@ -52,19 +52,23 @@ async function fetchData(year, month, sortOrder, next = "", errList) {
             },
             httpsAgent: vpnProxyAgent,
         });
-        console.log(year, month, '正常')
         return {
             edges: response.data[0].data.tagFromSlug.sortedFeed.edges,
             pageInfo: response.data[0].data.tagFromSlug.sortedFeed.pageInfo
         };
     } catch (error) {
         console.log('接口限制捕获成功')
-        errList.push(() => getArtListfetch(year, month, next, errList))
-        throw new Error(`Error fetching data: ${year, month, error.message}`);
+        errList.push((index) => getArtListfetch(year, month, next, errList, index))
+        console.error(`Error fetching data: ${error.message}`)
+        if (error.message === 'Request failed with status code 429') {
+            throw new Error(index);
+        } else {
+            throw new Error(error.message)
+        }
     }
 }
 
-// 获取翻译进度
+
 function getComplete() {
     const content = fs.readFileSync('./complete.json', 'utf-8');
     if (content.length === 0) {
@@ -80,9 +84,9 @@ function getComplete() {
  * @param {number} month 月
  * @param { string } next 下一页信息
  */
-async function getArtListfetch(year, month, next = '', errList) {
+async function getArtListfetch(year, month, next = '', errList, index) {
     try {
-        const forwardResponse = await fetchData(year, month, 'OLDEST', next, errList)
+        const forwardResponse = await fetchData(year, month, 'OLDEST', next, errList, index)
         // 处理获取到的数据
         const forwardData = forwardResponse.edges.map(item => (`${item.node.id}:${item.node.clapCount}`));
 
@@ -113,14 +117,16 @@ async function getArtListfetch(year, month, next = '', errList) {
             // 标记已完成年月
             fs.writeFileSync('complete.json', newcomplete, 'utf-8');
 
-            delete obj[year]
+            // 释放占用内存
+            delete obj[year][month]
+            console.log(`${year}/${month}完成`)
+            return index
         } else {
-            // await sleep(getRandomInt(100, 300));
             // 继续遍历
-            await getArtListfetch(year, month, forwardResponse.pageInfo.endCursor, errList)
+            await getArtListfetch(year, month, forwardResponse.pageInfo.endCursor, errList, index)
         }
     } catch (error) {
-        console.error('Error:', year, month, error.message);
+        throw new Error(index);
     }
 }
 
@@ -179,6 +185,6 @@ const processMediumDate = async () => {
 };
 
 
-// processMediumDate()
+processMediumDate()
 
 module.exports = processMediumDate

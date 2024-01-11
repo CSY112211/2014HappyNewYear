@@ -43,7 +43,7 @@ for (const { year, months } of mediumDate) { // mei
 
 
 
-3. 每次循环玩后判断是否需要再次进行
+3. 每次循环玩后判断是否需要再次进行 ** 循环重新优化，详情查看queue.js **
 
 ```javascript
 // hasMore 表示存在未抓取的年月
