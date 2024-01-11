@@ -16,7 +16,6 @@ const apiBaseUrl = 'https://medium.com/_/graphql'
 const vpnProxyUrl = 'http://127.0.0.1:7078'
 
 const obj = {}
-let showReturn = false
 
 // 创建代理实例
 const vpnProxyAgent = new HttpsProxyAgent(vpnProxyUrl);
@@ -184,7 +183,6 @@ const processMediumDate = async () => {
     return true
 };
 
-
-processMediumDate()
+// processMediumDate()
 
 module.exports = processMediumDate

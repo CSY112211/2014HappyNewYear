@@ -42,7 +42,6 @@ class QueueMange {
         return (this.incomplete.length > 0 || this.errList.length > 0) && this.operation.length < this.count
     }
 
-
     async start(proxy) {
         const showReturn = false
         while (this.hasMore()) {
